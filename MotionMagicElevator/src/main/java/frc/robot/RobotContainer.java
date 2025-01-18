@@ -10,6 +10,7 @@ import frc.robot.subsystems.Mechanism;
 
 import com.ctre.phoenix6.SignalLogger;
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -65,7 +66,9 @@ public class RobotContainer {
     m_driverController.back().whileTrue(m_mechanism.homeCommand());
     m_driverController.povUp().whileTrue(m_mechanism.openLoopCommand(2));
     m_driverController.povDown().whileTrue(m_mechanism.openLoopCommand(-2));
-    m_driverController.povLeft().whileTrue(m_mechanism.motionMagicCommand(24));
+    m_driverController.povLeft().whileTrue(m_mechanism.pidCommand(24));
+    SmartDashboard.putNumber("Elevator test setpoint", 0);
+    m_driverController.povRight().whileTrue(m_mechanism.pidCommand(()-> SmartDashboard.getNumber("Elevator test setpoint", 0)));
   }
 
   /**

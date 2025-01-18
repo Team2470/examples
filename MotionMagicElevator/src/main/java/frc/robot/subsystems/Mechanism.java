@@ -7,16 +7,17 @@ import java.util.function.DoubleSupplier;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.MotionMagicExpoTorqueCurrentFOC;
-import com.ctre.phoenix6.controls.MotionMagicExpoVoltage;
-import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import edu.wpi.first.math.controller.ElevatorFeedforward;
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -28,7 +29,7 @@ import frc.robot.Constants.MechanismConstants;
 public class Mechanism extends SubsystemBase {
 
     private enum ControlMode {
-       kHome, kStop, kOpenLoop, kMotionMagic
+       kHome, kStop, kOpenLoop, kPID
     }
 
     //
@@ -47,7 +48,19 @@ public class Mechanism extends SubsystemBase {
     private boolean m_homed;
 
     private final VoltageOut m_homeVoltageRequst = new VoltageOut(0);
-    private final MotionMagicVoltage m_motionMagicRequest = new MotionMagicVoltage(0);
+
+    //
+    // PID
+    //
+
+    private final ProfiledPIDController m_pidController = new ProfiledPIDController(0, 0, 0,
+        new TrapezoidProfile.Constraints(70, 120));
+    private double m_pidLastVelocitySetpoint = 0;
+    private double m_pidLastTime;
+
+    private ElevatorFeedforward m_feedforward =
+        new ElevatorFeedforward(0, 0.0, 0, 0);
+
 
     //
     // SysID
@@ -137,6 +150,15 @@ public class Mechanism extends SubsystemBase {
         // Mechanism state
         //
         m_homed = false;
+
+        SmartDashboard.putNumber("Elevator kS", 0);
+        SmartDashboard.putNumber("Elevator kG", 0.245);
+        SmartDashboard.putNumber("Elevator kV", 0.218);
+        SmartDashboard.putNumber("Elevator kA", 0.025);
+        SmartDashboard.putNumber("Elevator kP", 2);
+        SmartDashboard.putNumber("Elevator kI", 0);
+        SmartDashboard.putNumber("Elevator kD", 0);
+
     }
 
     //
@@ -151,6 +173,10 @@ public class Mechanism extends SubsystemBase {
         return m_motor.getPosition().getValueAsDouble() * MechanismConstants.kRotationToInches;
     }
 
+    public double getVelocity() {
+        return m_motor.getVelocity().getValueAsDouble() * MechanismConstants.kRotationToInches;
+    }
+
     public void stop() {
         m_controlMode = ControlMode.kStop;
         m_demand = 0.0;
@@ -161,8 +187,13 @@ public class Mechanism extends SubsystemBase {
         m_demand = OutputVoltage;
     }
 
-    public void setMotionMagic(double heightInches) {
-        m_controlMode = ControlMode.kMotionMagic;
+    public void setPID(double heightInches) {
+        if (m_controlMode != ControlMode.kPID) {
+            m_pidController.reset(getHeight());
+            m_pidLastVelocitySetpoint = 0;
+            m_pidLastTime = Timer.getFPGATimestamp();
+        }
+        m_controlMode = ControlMode.kPID;
         m_demand = heightInches;
     }
 
@@ -207,13 +238,13 @@ public class Mechanism extends SubsystemBase {
         return openLoopCommand(() -> OutputVoltage);
     }
 
-    public Command motionMagicCommand(DoubleSupplier heightInches) {
+    public Command pidCommand(DoubleSupplier heightInchesSupplier) {
         return Commands.runEnd(
-            () -> this.setMotionMagic(heightInches.getAsDouble()), this::stop, this);
+            () -> this.setPID(heightInchesSupplier.getAsDouble()), this::stop, this);
     }
 
-    public Command motionMagicCommand(double heightInches) {
-        return motionMagicCommand(() -> heightInches);
+    public Command pidCommand(double heightInches) {
+        return pidCommand(() -> heightInches);
     }
 
     public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
@@ -244,6 +275,7 @@ public class Mechanism extends SubsystemBase {
         SmartDashboard.putNumber("Mechanism demand", m_demand);
         SmartDashboard.putBoolean("Mechanism is at retract limit", isAtRetractLimit());
         SmartDashboard.putBoolean("Mechanism homed", m_homed);
+        SmartDashboard.putNumber("Mechanism velocity", getVelocity());
         SmartDashboard.putNumber("Mechanism height", getHeight());
         SmartDashboard.putNumber("Mechanism rotations", m_motor.getPosition().getValueAsDouble());
 
@@ -275,9 +307,34 @@ public class Mechanism extends SubsystemBase {
                 // Do openloop stuff here
                 m_motor.setVoltage(m_demand);    
                 break;
-            case kMotionMagic:
-                m_motionMagicRequest.Position = m_demand/MechanismConstants.kRotationToInches;
-                m_motor.setControl(m_motionMagicRequest);
+            case kPID:
+                m_feedforward = new ElevatorFeedforward(
+                    SmartDashboard.getNumber("Elevator kS", 0),
+                    SmartDashboard.getNumber("Elevator kG", 0),
+                    SmartDashboard.getNumber("Elevator kV", 0),
+                    SmartDashboard.getNumber("Elevator kA", 0)
+                );
+                m_pidController.setP(SmartDashboard.getNumber("Elevator kP", 0));
+                m_pidController.setI(SmartDashboard.getNumber("Elevator kI", 0));
+                m_pidController.setD(SmartDashboard.getNumber("Elevator kD", 0));
+
+        
+                double pidVoltage = m_pidController.calculate(getHeight(), m_demand);
+                double dt = Timer.getFPGATimestamp() - m_pidLastTime;
+                double accelerationSetpoint = (m_pidController.getSetpoint().velocity - m_pidLastVelocitySetpoint) / dt;
+                double feedforwardVoltage = m_feedforward.calculate(m_pidController.getSetpoint().velocity, accelerationSetpoint);
+        
+                double outputVoltage = pidVoltage + feedforwardVoltage;
+                m_motor.setVoltage(outputVoltage);
+
+                SmartDashboard.putNumber("Elevator Output Voltage", pidVoltage);
+                SmartDashboard.putNumber("Elevator PID Output Voltage", feedforwardVoltage);
+                SmartDashboard.putNumber("Elevator Feedfoward Output Voltage", outputVoltage);
+        		SmartDashboard.putNumber("Eleavtor Profile Position", m_pidController.getSetpoint().position);
+        		SmartDashboard.putNumber("Eleavtor Profile Velocity", m_pidController.getSetpoint().velocity);
+
+                m_pidLastVelocitySetpoint = m_pidController.getSetpoint().velocity;
+                m_pidLastTime = Timer.getFPGATimestamp();
                 break;
             case kStop:
                 // Fall through to default
