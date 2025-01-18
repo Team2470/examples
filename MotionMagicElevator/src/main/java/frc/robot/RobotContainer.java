@@ -62,7 +62,7 @@ public class RobotContainer {
     m_driverController.x().whileTrue(m_mechanism.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
 
-    m_driverController.leftBumper().whileTrue(m_mechanism.homeCommand());
+    m_driverController.back().whileTrue(m_mechanism.homeCommand());
     m_driverController.povUp().whileTrue(m_mechanism.openLoopCommand(2));
     m_driverController.povDown().whileTrue(m_mechanism.openLoopCommand(-2));
   }

@@ -50,7 +50,6 @@ public class Mechanism extends SubsystemBase {
     //
     // SysID
     //
-    private final VoltageOut m_voltReq = new VoltageOut(0.0);
     private final SysIdRoutine m_sysIdRoutine = new SysIdRoutine(
         new SysIdRoutine.Config(
             // Use default ramp rate (1 V/s)
@@ -63,7 +62,7 @@ public class Mechanism extends SubsystemBase {
             (state) -> SignalLogger.writeString("state", state.toString())
         ),
         new SysIdRoutine.Mechanism(
-            (volts) -> m_motor.setControl(m_voltReq.withOutput(volts.in(Volts))),
+            (volts) -> setOutputVoltage(volts.in(Volts)),
             null,
             this
         )
@@ -121,6 +120,7 @@ public class Mechanism extends SubsystemBase {
 
         // We want to read position data from the leader motor
         m_motor.getPosition().setUpdateFrequency(50);
+        m_motor.getVelocity().setUpdateFrequency(50);
 
         // These 3 are needed for the follower motor to work
         m_motor.getDutyCycle().setUpdateFrequency(50);
