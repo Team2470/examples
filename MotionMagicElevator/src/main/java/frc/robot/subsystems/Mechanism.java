@@ -54,7 +54,7 @@ public class Mechanism extends SubsystemBase {
     //
 
     private final ProfiledPIDController m_pidController = new ProfiledPIDController(0, 0, 0,
-        new TrapezoidProfile.Constraints(70, 120));
+        new TrapezoidProfile.Constraints(50, 150));
     private double m_pidLastVelocitySetpoint = 0;
     private double m_pidLastTime;
 
@@ -154,7 +154,7 @@ public class Mechanism extends SubsystemBase {
         SmartDashboard.putNumber("Elevator kS", 0);
         SmartDashboard.putNumber("Elevator kG", 0.245);
         SmartDashboard.putNumber("Elevator kV", 0.218);
-        SmartDashboard.putNumber("Elevator kA", 0.025);
+        SmartDashboard.putNumber("Elevator kA", 0.0015); // 0.025 is too big
         SmartDashboard.putNumber("Elevator kP", 2);
         SmartDashboard.putNumber("Elevator kI", 0);
         SmartDashboard.putNumber("Elevator kD", 0);
