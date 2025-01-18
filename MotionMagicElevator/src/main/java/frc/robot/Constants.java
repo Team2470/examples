@@ -18,9 +18,9 @@ public final class Constants {
   }
 
   public static class MechanismConstants {
-    public static final int kMotorID = 20;
-    public static final int kMotorFollowerID = 21;
-    public static final int kRetractLimitSwitchChannel = 0;
-    public static final double kRotationToInches = 1.0/20.0 * 1.751 * Math.PI;//TODO: Find the correct value
+    public static final int kMotorID = 1;
+    public static final int kMotorFollowerID = 2;
+    public static final int kRetractLimitSwitchChannel = 9;
+    public static final double kRotationToInches = 1.0/20.0 * 1.751 * Math.PI * 2.0;//TODO: Find the correct value
   }
 }
