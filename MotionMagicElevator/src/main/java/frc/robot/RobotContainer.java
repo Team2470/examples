@@ -65,6 +65,7 @@ public class RobotContainer {
     m_driverController.back().whileTrue(m_mechanism.homeCommand());
     m_driverController.povUp().whileTrue(m_mechanism.openLoopCommand(2));
     m_driverController.povDown().whileTrue(m_mechanism.openLoopCommand(-2));
+    m_driverController.povLeft().whileTrue(m_mechanism.motionMagicCommand(24));
   }
 
   /**
