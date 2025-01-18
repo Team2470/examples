@@ -8,6 +8,8 @@ import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicExpoTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.MotionMagicExpoVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.GravityTypeValue;
@@ -45,7 +47,7 @@ public class Mechanism extends SubsystemBase {
     private boolean m_homed;
 
     private final VoltageOut m_homeVoltageRequst = new VoltageOut(0);
-    private final MotionMagicExpoTorqueCurrentFOC m_motionMagicRequest = new MotionMagicExpoTorqueCurrentFOC(0);
+    private final MotionMagicVoltage m_motionMagicRequest = new MotionMagicVoltage(0);
 
     //
     // SysID
@@ -114,7 +116,7 @@ public class Mechanism extends SubsystemBase {
         // Motion Magic
         m_motorConfig.MotionMagic.MotionMagicCruiseVelocity = 8.0; // Rotations Per second
         m_motorConfig.MotionMagic.MotionMagicAcceleration = 8.0; // Acceleration Rotations per second^2
-        m_motorConfig.MotionMagic.MotionMagicCruiseVelocity = 0; // Unlimited cruise velocity
+        // m_motorConfig.MotionMagic.MotionMagicCruiseVelocity = 0; // Unlimited cruise velocity
         m_motorConfig.MotionMagic.MotionMagicExpo_kV = 0.12; // kV is around 0.12 V/rps
         m_motorConfig.MotionMagic.MotionMagicExpo_kA = 0.1; // Use a slower kA of 0.1 V/(rps/s)
 
